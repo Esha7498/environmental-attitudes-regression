@@ -1,7 +1,6 @@
 # environmental-attitudes-regression
 # Understanding College Students’ Pro-Environmental Behavior (Regression Reproduction + Extension)
 
-**Course:** STAT 615 (American University)  
 **Project type:** Reproduction & extension of a published study (PLOS ONE, 2024)
 
 ## Overview
@@ -53,7 +52,7 @@ Interaction terms were **not significant** (p > 0.55), suggesting **additive eff
 1. Open `code/data_cleaning.Rmd` and run to generate the cleaned dataset.
 2. Open `code/Project_test.Rmd` and knit/run to reproduce models and outputs.
 
-> Note: If you don’t include raw data in this repo, update the Data section with instructions to download it.
+
 
 ## Reference
 Li, Y., Yang, D., & Liu, S. (2024). *The impact of environmental education at Chinese Universities on college students’ environmental attitudes.* PLOS ONE.
