@@ -1,0 +1,128 @@
+---
+title: "Cleaning_data"
+author: "Esha Teware"
+date: "2025-06-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)   # For reading Excel
+library(dplyr)    # Data manipulation
+library(psych)    # Cronbach’s alpha
+library(car)      # ANOVA, VIF, Durbin–Watson
+library(corrplot) # Correlation matrix plot (optional)
+library(knitr)    # kable() for nice tables
+library(ggplot2)  # (Optional) for histograms and diagnostic plots
+```
+
+
+```{r}
+# Read the Data 
+df_raw <- read_excel("S1_File.xlsx")
+print(colnames(df_raw))
+#str(df_raw)
+#summary(df_raw)
+
+
+```
+
+
+# Variables and their explinations: 
+
+###. Four dimensions of the study
+
+1.Environmental attitudes (EA) 
+2.subjective norms (SN) 
+3.perceived behavioral control (PBC) 
+4.school curriculum education (SCE) 
+
+###. Gender 
+Male
+Female
+
+###. Current Degree
+
+Vocational 
+Undergraduate 
+Graduate
+
+###. Hometown Location 
+
+Rural
+Urban
+
+###. Monthly living expenses
+
+<¥1,500
+¥1,500-2,000
+¥2,001-3,000
+¥3,000 or above
+
+###. Ratings 
+
+Respondents indicated their degree of agreement with the statements on a scale from 1 (strongly disagree) to 5 (strongly agree) for each of the questionnaire’s five-point Likert scale items.
+
+
+```{r}
+df_raw <- read_excel("S1_File.xlsx")
+
+df_raw <- df_raw %>%
+  rename(
+    PBC3 = `PBC4...15`,        # Face-saving
+    PBC4 = `PBC4...16`       # Knowledge/capability
+  )
+```
+
+
+
+
+
+
+
+```{r}
+# Re-code Demographic Variables 
+# Convert numeric codes into factors with human‐readable labels.
+df <- df_raw %>%
+  mutate(
+    Gender = factor(Gender, levels = c(1, 2), labels = c("Male", "Female")),
+    Degree = factor(`Current Degree`, levels = c(1, 2, 3), labels = c("Vocational", "Undergraduate", "Graduate")),
+    Hometown = factor(`Hometown Location`, levels = c(1, 2), labels = c("Rural", "Urban")),
+    LivingExp = factor(`Monthly living expenses`, levels = c(1, 2, 3, 4), labels = c("<¥1,500", "¥1,500-2,000", "¥2,001-3,000", ">¥3,000"))
+  ) %>%
+  dplyr::select(-`Current Degree`, -`Hometown Location`, -`Monthly living expenses`)
+
+print(df)
+
+# Confirm recoding
+table(df$Gender)
+table(df$Degree)
+table(df$Hometown)
+table(df$LivingExp)
+```
+
+
+
+
+
+```{r}
+# Create Composite Scores
+df <- df %>%
+  mutate(
+    EA  = rowMeans(dplyr::select(., EA1, EA2, EA3, EA4), na.rm = TRUE),
+    SN  = rowMeans(dplyr::select(., SN1, SN2, SN3), na.rm = TRUE),
+    PBC = rowMeans(dplyr::select(., PBC1, PBC2, PBC3, PBC4), na.rm = TRUE),
+    SCE = rowMeans(dplyr::select(., CE1, CE2, CE3, CE4, CE5), na.rm = TRUE)
+  )
+
+# At the end of your cleaning Rmd
+saveRDS(df, "Cleaned.rds")
+
+```
+
+
+
+

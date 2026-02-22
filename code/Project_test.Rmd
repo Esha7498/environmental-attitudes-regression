@@ -1,0 +1,463 @@
+---
+title: "Project"
+author: "Esha Teware"
+date: "2025-06-06"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)   # For reading Excel
+library(dplyr)    # Data manipulation
+library(psych)    # Cronbach’s alpha
+library(car)      # ANOVA, VIF, Durbin–Watson
+library(corrplot) # Correlation matrix plot (optional)
+library(knitr)    # kable() for nice tables
+library(ggplot2)  # (Optional) for histograms and diagnostic plots
+```
+
+
+# Variables and their explinations: 
+
+###. Four dimensions of the study
+
+1.Environmental attitudes (EA) 
+2.subjective norms (SN) 
+3.perceived behavioral control (PBC) 
+4.school curriculum education (SCE) 
+
+###. Gender 
+Male
+Female
+
+###. Current Degree
+
+Vocational 
+Undergraduate 
+Graduate
+
+###. Hometown Location 
+
+Rural
+Urban
+
+###. Monthly living expenses
+
+<¥1,500
+¥1,500-2,000
+¥2,001-3,000
+¥3,000 or above
+
+###. Ratings 
+
+Respondents indicated their degree of agreement with the statements on a scale from 1 (strongly disagree) to 5 (strongly agree) for each of the questionnaire’s five-point Likert scale items.
+
+
+
+```{r}
+# cleaned CSV
+df <- readRDS("Cleaned.rds")
+
+```
+
+
+
+
+
+# Table 1 - Sample Demographics 
+```{r}
+# Table 1 - Sample Demographics 
+# Compute frequency (n) and percentage (%) for each demographic category.
+
+# 1) Gender
+gender_tab  <- table(df$Gender)
+gender_pct  <- round(prop.table(gender_tab) * 100, 1)
+
+# 2) Degree
+degree_tab  <- table(df$Degree)
+degree_pct  <- round(prop.table(degree_tab) * 100, 1)
+
+# 3) Hometown
+home_tab    <- table(df$Hometown)
+home_pct    <- round(prop.table(home_tab) * 100, 1)
+
+# 4) Living Expenses
+living_tab  <- table(df$LivingExp)
+living_pct  <- round(prop.table(living_tab) * 100, 1)
+
+# Combine into a single data.frame
+table1 <- data.frame(
+  Category   = c(
+    as.character(names(gender_tab)),
+    as.character(names(degree_tab)),
+    as.character(names(home_tab)),
+    as.character(names(living_tab))
+  ),
+  Frequency  = c(
+    as.integer(gender_tab),
+    as.integer(degree_tab),
+    as.integer(home_tab),
+    as.integer(living_tab)
+  ),
+  Percentage = c(
+    as.numeric(gender_pct),
+    as.numeric(degree_pct),
+    as.numeric(home_pct),
+    as.numeric(living_pct)
+  )
+)
+
+
+rownames(table1) <- NULL
+table1$Category <- c(
+  "Male", "Female",
+  "Vocational", "Undergraduate", "Graduate",
+  "Rural", "Urban",
+  "<¥1,500", "¥1,500-2,000", "¥2,001-3,000", ">¥3,000"
+)
+
+print(table1)
+
+```
+
+
+# Table 2 - Reliability (Cronbach’s Alpha) 
+```{r}
+# Table 2 - Reliability (Cronbach’s Alpha) 
+alpha_EA   <- psych::alpha(df %>% dplyr::select(EA1, EA2, EA3, EA4))
+alpha_SN   <- psych::alpha(df %>% dplyr::select(SN1, SN2, SN3))
+alpha_PBC  <- psych::alpha(df %>% dplyr::select(PBC1, PBC2, PBC3, PBC4))  # rename to PBC3, PBC4
+alpha_SCE  <- psych::alpha(df %>% dplyr::select(CE1, CE2, CE3, CE4, CE5))
+alpha_total <- psych::alpha(df %>% dplyr::select(EA1:EA4, SN1:SN3, starts_with("PBC"), CE1:CE5))
+
+cat("Cronbach’s Alpha Results:\n")
+cat("  EA  (4 items):      ", round(alpha_EA$total$raw_alpha, 3), "\n")
+cat("  SN  (3 items):      ", round(alpha_SN$total$raw_alpha, 3), "\n")
+cat("  PBC (3 items):      ", round(alpha_PBC$total$raw_alpha, 3), "\n")
+cat("  SCE (5 items):      ", round(alpha_SCE$total$raw_alpha, 3), "\n")
+cat("  Total Questionnaire:", round(alpha_total$total$raw_alpha, 3), "\n")
+```
+
+
+# Table 3 - Frequency (%) Distribution of EA Items
+```{r}
+# Table 3 - Frequency (%) Distribution of EA Items 
+# For EA1–EA4, compute % of responses 1–5 each item.
+
+freq_EA1 <- prop.table(table(df$EA1)) * 100
+freq_EA2 <- prop.table(table(df$EA2)) * 100
+freq_EA3 <- prop.table(table(df$EA3)) * 100
+freq_EA4 <- prop.table(table(df$EA4)) * 100
+
+table3 <- data.frame(
+  Score = 1:5,
+  EA1   = round(as.numeric(freq_EA1[as.character(1:5)]), 1),
+  EA2   = round(as.numeric(freq_EA2[as.character(1:5)]), 1),
+  EA3   = round(as.numeric(freq_EA3[as.character(1:5)]), 1),
+  EA4   = round(as.numeric(freq_EA4[as.character(1:5)]), 1)
+)
+colnames(table3) <- c("Score", "EA1 (%)", "EA2 (%)", "EA3 (%)", "EA4 (%)")
+print(table3)
+
+```
+
+
+
+
+# Table 4 - One‐Way ANOVA and t test (EA by Demographic Factors) 
+
+```{r}
+overall_mean_EA <- mean(df$EA)
+print(overall_mean_EA)
+```
+
+```{r}
+# Gender (2 levels -> t-test) 
+
+# Compute group means and SDs for Gender
+gender_stats <- df %>%
+  group_by(Gender) %>%
+  summarize(
+    mean_EA = mean(EA),
+    sd_EA   = sd(EA),
+    n       = n()
+  )
+print(gender_stats)
+
+# Perform the t‐test
+tt_gender <- t.test(EA ~ Gender, data = df, var.equal = TRUE)
+print(tt_gender)
+
+
+```
+
+```{r}
+# Education Level (3 levels -> ANOVA) 
+
+# Compute group means & SDs
+degree_stats <- df %>%
+  group_by(Degree) %>%
+  summarize(
+    Mean_EA = round(mean(EA), 2),
+    SD_EA   = round(sd(EA), 2),
+    n       = n()
+  )
+print(degree_stats)
+
+# Run one‐way ANOVA
+aov_degree <- aov(EA ~ Degree, data = df)
+summary(aov_degree)
+```
+
+```{r}
+# Hometown Location (2 levels -> t-test) 
+
+# Compute group means & SDs
+home_stats <- df %>%
+  group_by(Hometown) %>%
+  summarize(
+    Mean_EA = round(mean(EA), 2),
+    SD_EA   = round(sd(EA), 2),
+    n       = n()
+  )
+print(home_stats)
+
+# Perform t‐test (pooled‐variance)
+tt_home <- t.test(EA ~ Hometown, data = df, var.equal = TRUE)
+print(tt_home)
+```
+
+```{r}
+# Monthly Living Expenses (4 levels -> ANOVA) 
+# Compute group means & SDs
+living_stats <- df %>%
+  group_by(LivingExp) %>%
+  summarize(
+    Mean_EA = mean(EA),
+    SD_EA   = sd(EA),
+    n       = n()
+  ) %>%
+  mutate(
+    Mean_EA = round(Mean_EA, 2),
+    SD_EA   = round(SD_EA, 2)
+  )
+print(living_stats)
+# Run one‐way ANOVA
+aov_living <- aov(EA ~ LivingExp, data = df)
+summary(aov_living)
+```
+
+
+
+
+
+# Table 5 - Means & SDs for SN, PBC, SCE
+
+```{r}
+# Table 5 - Means & SDs for SN, PBC, SCE
+for (var in c("SN", "PBC", "SCE")) {
+  x <- df[[var]]
+  cat(var, ":\n",
+      "  N =", length(x),
+      " Min =", min(x),
+      " Max =", max(x),
+      " Mean =", round(mean(x), 3),
+      " SD =", round(sd(x), 3), "\n\n")
+}
+
+```
+
+
+#  Table 6 - Pearson Correlation Matrix
+
+
+To get the p values to know if they are significant or not
+
+```{r}
+# Table 6 - Pearson Correlation Matrix
+# correlation matrix and p-values
+results <- psych::corr.test(df %>% dplyr::select(EA, SN, PBC, SCE))
+cor_matrix <- results$r
+p_matrix <- results$p
+cat("Correlation matrix:\n")
+print(round(cor_matrix, 3))
+
+# Converting p-values to make them readable 
+cat("\nP-values:\n")
+pretty_p <- apply(p_matrix, c(1, 2), function(p) {
+  if (p < 0.001) {
+    "< 0.001"
+  } else {
+    format(round(p, 3), nsmall = 3)
+  }
+})
+print(pretty_p)
+
+```
+
+
+
+
+
+# Table 7 - Multiple Linear Regression (EA ~ SN + PBC + SCE)
+
+```{r}
+# Table 7 - Multiple Linear Regression (EA ~ SN + PBC + SCE)
+model <- lm(EA ~ SN + PBC + SCE, data = df)
+summary(model)
+
+# Check multicollinearity
+vif_vals <- car::vif(model)
+
+coef_out <- summary(model)$coefficients
+
+table7 <- data.frame(
+   Predictor      = rownames(coef_out)[-1],
+  `Estimate_beta` = round(coef_out[-1, "Estimate"], 3),
+  `Std_Error`   = round(coef_out[-1, "Std. Error"], 3),
+  `t_Value`      = round(coef_out[-1, "t value"], 3),
+  `p_Value`      = round(coef_out[-1, "Pr(>|t|)"], 3),
+   VIF            = round(vif_vals, 2)  
+)
+print(table7)
+
+```
+# Standardized Coefficients for table 7 
+
+```{r}
+library(QuantPsyc)
+lm.beta(model)
+```
+
+
+# additional research that we are trying to extend and work on 
+
+### Linearity Check
+
+```{r}
+# Partial residual plots
+car::crPlots(model)  # 'model' is your lm object
+
+```
+
+
+```{r}
+# pretty Partial residual plots
+#install.packages("visreg")  
+library(visreg)
+library(ggplot2)
+
+# SN
+visreg(model, "SN", gg = TRUE, overlay = TRUE, partial = TRUE) +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("fit" = "#E74C3C", "res" = "#2C3E50")) +
+  labs(title = "Partial Effect of Subjective Norms (SN)",
+       y = "Component + Residual (EA)", x = "Subjective Norms (SN)")
+
+# PBC
+visreg(model, "PBC", gg = TRUE, overlay = TRUE, partial = TRUE) +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("fit" = "#27AE60", "res" = "#2C3E50")) +
+  labs(title = "Partial Effect of Perceived Behavioral Control (PBC)",
+       y = "Component + Residual (EA)", x = "Perceived Behavioral Control (PBC)")
+
+# SCE
+visreg(model, "SCE", gg = TRUE, overlay = TRUE, partial = TRUE) +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("fit" = "#2980B9", "res" = "#2C3E50")) +
+  labs(title = "Partial Effect of School Curriculum Education (SCE)",
+       y = "Component + Residual (EA)", x = "School Curriculum Education (SCE)")
+```
+
+
+
+```{r}
+# Histogram
+hist(resid(model), main = "Residuals", xlab = "Residuals")
+
+# Q-Q Plot
+qqnorm(resid(model)); qqline(resid(model))
+
+# Shapiro-Wilk test
+shapiro.test(resid(model))
+
+```
+
+```{r}
+# pretty plots 
+res <- resid(model)
+hist(res, 
+     main = "Histogram of Residuals", 
+     xlab = "Residuals", 
+     col = "lightblue", 
+     breaks = 20, 
+     freq = FALSE)
+lines(density(res), col = "darkblue", lwd = 2)
+
+```
+
+
+
+```{r}
+qqnorm(res, 
+       main = "Normal Q-Q Plot", 
+       col = "darkgreen", 
+       pch = 20)
+qqline(res, 
+       col = "red", 
+       lwd = 2)
+```
+
+
+```{r}
+plot(fitted(model), resid(model),
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+```
+
+
+
+
+
+
+
+### interation terms 
+
+Tests whether, for example, the effect of SN on EA depends on PBC (and similarly for other pairs).
+```{r}
+# Center predictors to ease interpretation
+df2 <- df %>%
+  mutate(
+    SN_c  = SN  - mean(SN),
+    PBC_c = PBC - mean(PBC),
+    SCE_c = SCE - mean(SCE)
+  )
+
+# Fit a model with all pairwise interactions
+model_int <- lm(EA ~ SN_c * PBC_c + SN_c * SCE_c + PBC_c * SCE_c, data = df2)
+summary(model_int)
+```
+
+### Logistic Regression 
+
+
+
+```{r}
+df <- df %>%
+  mutate(EA_binary = ifelse(EA >= 4, 1, 0))
+
+```
+
+
+```{r}
+model_logit <- glm(EA_binary ~ SN + PBC + SCE, data = df, family = "binomial")
+summary(model_logit)
+
+```
+
